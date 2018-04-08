@@ -39,12 +39,19 @@ var audioCtx2 = new (window.AudioContext ||
   window.msAudioContext ||
   window.oAudioContext ||
   window.webkitAudioContext)();
+  var audioCtx3 = new (window.AudioContext ||
+    window.mozAudioContext ||
+    window.msAudioContext ||
+    window.oAudioContext ||
+    window.webkitAudioContext)();
 //var voiceSelect = document.getElementById("voice");
-var source, source2;
-var stream;
+var source, source2, source3;
+var stream, microphoneStream;
 var template = document.createElement('audio');
     template.crossOrigin = 'anonymous';
 
+    var template2 = document.createElement('audio');
+    template2.crossOrigin = 'anonymous';
 
 
 var record = document.querySelector('.record');
@@ -69,29 +76,28 @@ analyser2.minDecibels = -90;
 analyser2.maxDecibels = -10;
 analyser2.smoothingTimeConstant = 0.85;
 
+// comparison
 var distortion2 = audioCtx2.createWaveShaper();
 var gainNode2 = audioCtx2.createGain();
 var biquadFilter2 = audioCtx2.createBiquadFilter();
 var convolver2 = audioCtx2.createConvolver();
 
 
-function makeDistortionCurve(amount) {
-  var k = typeof amount === 'number' ? amount : 50,
-    n_samples = 44100,
-    curve = new Float32Array(n_samples),
-    deg = Math.PI / 180,
-    i = 0,
-    x;
-  for ( ; i < n_samples; ++i ) {
-    x = i * 2 / n_samples - 1;
-    curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) );
-  }
-  return curve;
-};
+var analyser3 = audioCtx3.createAnalyser();
+analyser3.minDecibels = -90;
+analyser3.maxDecibels = -10;
+analyser3.smoothingTimeConstant = 0.85;
+
+var distortion3 = audioCtx3.createWaveShaper();
+var gainNode3 = audioCtx3.createGain();
+var biquadFilter3 = audioCtx3.createBiquadFilter();
+var convolver3 = audioCtx3.createConvolver();
+
+
 
 // grab audio track via XHR for convolver node
 
-var myBuffer;
+var templateBuffer, comparisonBuffer;
 
 ajaxRequest = new XMLHttpRequest();
 
@@ -105,19 +111,14 @@ ajaxRequest.onload = function() {
   var audioData = ajaxRequest.response;
 
   audioCtx.decodeAudioData(audioData, function(buffer) {
-    myBuffer = buffer;
+    templateBuffer = buffer;
       songLength = buffer.duration;
       
       console.log('ajaex buffer: ', buffer)
 
-
-        
-        
-        // we create an audio tag with a source for testing only.
         template.src = 'https://speechanalyser.blob.core.windows.net/template/Base.wav';
-        //template.src = 'https://mdn.github.io/voice-change-o-matic/audio/concert-crowd.ogg';
-        //template.src = 'https://www.computerhope.com/jargon/m/example.mp3';
-         source = audioCtx.createMediaElementSource(template)  //audioCtx.createMediaStreamSource(stream);
+
+         source = audioCtx.createMediaElementSource(template)
          source.connect(analyser);
          console.log('source : ', source)
          analyser.connect(distortion);
@@ -125,9 +126,8 @@ ajaxRequest.onload = function() {
          biquadFilter.connect(convolver);
          convolver.connect(gainNode);
          gainNode.connect(audioCtx.destination);
-         
  // soundSource.loop = true;
- visualize();
+ visualize(analyser, "blue");
     }, function(e){ console.log("Error with decoding audio data" + e.err);});
 
 
@@ -138,15 +138,58 @@ ajaxRequest.send();
 function playSound(){
   var soundSource
   soundSource = audioCtx.createBufferSource();
-  soundSource.buffer = myBuffer;
+  soundSource.buffer = templateBuffer;
   soundSource.playbackRate.value = 1 // playbackControl.value;
     soundSource.connect(audioCtx.destination);
     soundSource.start();
     console.log('ajaex soundSource: ', soundSource)
  template.play();
- visualize();
+ visualize(analyser, "blue");
 }
 
+ajaxRequest2 = new XMLHttpRequest();
+
+ajaxRequest2.open('GET', 'https://speechanalyser.blob.core.windows.net/template/Comparison1.wav', true);
+
+ajaxRequest2.responseType = 'arraybuffer';
+
+
+// in real situation this will get the template from database
+ajaxRequest2.onload = function() {
+  var audioData = ajaxRequest2.response;
+
+  audioCtx3.decodeAudioData(audioData, function(buffer) {
+    comparisonBuffer = buffer;
+      songLength = buffer.duration;
+        template2.src = 'https://speechanalyser.blob.core.windows.net/template/Comparison1.wav';
+         source3 = audioCtx3.createMediaElementSource(template2)
+         source3.connect(analyser3);
+         console.log('source : ', source3)
+         analyser3.connect(distortion3);
+         distortion3.connect(biquadFilter3);
+         biquadFilter3.connect(convolver3);
+         convolver3.connect(gainNode3);
+         gainNode3.connect(audioCtx3.destination);
+         
+ // soundSource.loop = true;
+
+    }, function(e){ console.log("Error with decoding audio data" + e.err);});
+
+
+};
+
+ajaxRequest2.send();
+
+function play2(){
+  var soundSource2
+  soundSource2 = audioCtx3.createBufferSource();
+  soundSource2.buffer = comparisonBuffer;
+  soundSource2.playbackRate.value = 1 // playbackControl.value;
+    soundSource2.connect(audioCtx3.destination);
+    soundSource2.start();
+ template2.play();
+ visualize(analyser3, "red");
+}
 
 //record.onclick = record;
 
@@ -187,30 +230,41 @@ var drawVisual, drawVisual2;
 
 
  
-if (navigator.mediaDevices.getUserMedia) {
-   console.log('getUserMedia supported.');
-   var constraints = {audio: true}
-   navigator.mediaDevices.getUserMedia (constraints)
-      .then(
-        function(stream) {
-          source2= audioCtx2.createMediaStreamSource(stream);
-           source2.connect(analyser2);
-          analyser2.connect(distortion2);
-          distortion2.connect(biquadFilter2);
-          biquadFilter2.connect(convolver2);
-          convolver2.connect(gainNode2);
-           gainNode2.connect(audioCtx2.destination);
-           visualize2();
-           
-          // voiceChange();
-      })
-      .catch( function(err) { console.log('The following gUM error occured: ' + err);})
-} else {
-   console.log('getUserMedia not supported on your browser!');
+function startrecording(){
+  if(record.id !== ""){
+    var track = microphoneStream.getTracks()[0];  
+    track.stop();
+    record.id = "";
+    record.innerHTML = "Record";
+    return
+  }
+  if (navigator.mediaDevices.getUserMedia) {
+    console.log('getUserMedia supported.');
+    var constraints = {audio: true}
+    navigator.mediaDevices.getUserMedia (constraints)
+       .then(
+         function(stream) {
+           microphoneStream = stream;
+           source2= audioCtx2.createMediaStreamSource(stream);
+            source2.connect(analyser2);
+           analyser2.connect(distortion2);
+           distortion2.connect(biquadFilter2);
+           biquadFilter2.connect(convolver2);
+           convolver2.connect(gainNode2);
+            gainNode2.connect(audioCtx2.destination);
+            visualize2();
+            record.id = "activated";
+            record.innerHTML = "Stop";
+           // voiceChange();
+       })
+       .catch( function(err) { console.log('The following gUM error occured: ' + err);})
+ } else {
+    console.log('getUserMedia not supported on your browser!');
+ }
 }
-
+//startrecording();
 // template
-function visualize() {
+function visualize(analyzer, color) {
   WIDTH = 2000 // canvas.width;
   HEIGHT = canvas.height;
 
@@ -218,8 +272,8 @@ function visualize() {
 
 
 
-    analyser.fftSize = 2048;
-    var bufferLength = analyser.fftSize;
+  analyzer.fftSize = 2048;
+    var bufferLength = analyzer.fftSize;
     console.log(bufferLength);
     var dataArray = new Uint8Array(bufferLength);
     console.log('dataArray: ', dataArray)
@@ -229,13 +283,13 @@ function visualize() {
 
       drawVisual = requestAnimationFrame(draw);
 
-      analyser.getByteTimeDomainData(dataArray);
+      analyzer.getByteTimeDomainData(dataArray);
 
-      canvasCtx.fillStyle = 'rgb(200, 200, 200)';
+      canvasCtx.fillStyle =  'rgb(200, 200, 200)';
       canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
       canvasCtx.lineWidth = 2;
-      canvasCtx.strokeStyle = 'rgb(0, 0, 0)';
+      canvasCtx.strokeStyle = color // 'rgb(0, 0, 0)';
 
       canvasCtx.beginPath();
 
