@@ -55,14 +55,15 @@ var template = document.createElement('audio');
 
 
 var record = document.querySelector('.record');
-
+var baseButton = document.querySelector('#base');
+var comparisonButton = document.querySelector('#comparison');
 
 
 //analyzier 1 for canvas 1 
 var analyser = audioCtx.createAnalyser();
 analyser.minDecibels = -90;
 analyser.maxDecibels = -10;
-analyser.smoothingTimeConstant = 0.85;
+analyser.smoothingTimeConstant = 0.5;
 
 var distortion = audioCtx.createWaveShaper();
 var gainNode = audioCtx.createGain();
@@ -74,7 +75,7 @@ var convolver = audioCtx.createConvolver();
 var analyser2 = audioCtx2.createAnalyser();
 analyser2.minDecibels = -90;
 analyser2.maxDecibels = -10;
-analyser2.smoothingTimeConstant = 0.85;
+analyser2.smoothingTimeConstant = 0.5;
 
 // comparison
 var distortion2 = audioCtx2.createWaveShaper();
@@ -127,7 +128,7 @@ ajaxRequest.onload = function() {
          convolver.connect(gainNode);
          gainNode.connect(audioCtx.destination);
  // soundSource.loop = true;
- visualize(analyser, "blue");
+ //visualize(analyser, "blue");
     }, function(e){ console.log("Error with decoding audio data" + e.err);});
 
 
@@ -136,6 +137,7 @@ ajaxRequest.onload = function() {
 ajaxRequest.send();
 
 function playSound(){
+  baseButton.disabled  = true;
   var soundSource
   soundSource = audioCtx.createBufferSource();
   soundSource.buffer = templateBuffer;
@@ -143,6 +145,8 @@ function playSound(){
     soundSource.connect(audioCtx.destination);
     soundSource.start();
     console.log('ajaex soundSource: ', soundSource)
+    template.preload = true;
+    template.onended = function(){cancelAnimationFrame(drawVisual); }
  template.play();
  visualize(analyser, "blue");
 }
@@ -180,20 +184,32 @@ ajaxRequest2.onload = function() {
 
 ajaxRequest2.send();
 
+var comparisonDrawn = false;
+
 function play2(){
-  var soundSource2
+  var soundSource2;
+  comparisonButton.disabled  = true;
   soundSource2 = audioCtx3.createBufferSource();
   soundSource2.buffer = comparisonBuffer;
   soundSource2.playbackRate.value = 1 // playbackControl.value;
     soundSource2.connect(audioCtx3.destination);
     soundSource2.start();
+    template2.preload = true;
+    template2.onended = function(){cancelAnimationFrame(drawVisual)}
  template2.play();
+ if(comparisonDrawn){
+   
+ }
  visualize(analyser3, "red");
 }
 
 //record.onclick = record;
 
-
+function clearWaves(){
+  comparisonButton.disabled  = false;
+  baseButton.disabled  = false;
+  canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+}
 
 function recordVoice(){
 
@@ -230,8 +246,79 @@ var drawVisual, drawVisual2;
 
 
  
+
+// template
+var arr = []
+function visualize(analyzer, color) {
+  WIDTH = canvas.width;
+  HEIGHT = canvas.height;
+
+  analyzer.fftSize = 32;
+    var bufferLength = 16;
+    console.log(bufferLength);
+    var dataArray = new Float32Array(bufferLength);
+    
+  //  canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+    
+      var x = 100;
+      canvasCtx.lineWidth = 20;
+      if(color == 'red')
+        canvasCtx.lineWidth = 2;
+      canvasCtx.strokeStyle = color // 'rgb(0, 0, 0)';
+
+      canvasCtx.beginPath();
+     // canvasCtx.moveTo(x, 120);
+    var draw = function() {
+
+      drawVisual = requestAnimationFrame(draw);
+
+      analyzer.getFloatFrequencyData(dataArray);
+   
+      //console.log('dataArray: ', color, dataArray)
+
+      var sliceWidth = WIDTH * 1.0 / bufferLength;
+      
+      
+     // canvasCtx.moveTo(50, 50);
+      for(var i = 0; i < bufferLength; i++) {
+        if(dataArray[i] == -Infinity)
+        continue;
+        
+        console.log("dataArray[i]: ", dataArray[i])
+        
+      //  arr.push(dataArray[i])
+     //    console.log(dataArray[i])
+       // var v = dataArray[i] / 128.0;
+      //  var y = v * HEIGHT/2;
+    //    arr.push(y)
+      //  console.log("y: ", dataArray[i])
+       // console.log("v: ",v)
+     //  if(x === 0) {
+       //  canvasCtx.moveTo(x, -1 * dataArray[i]);
+       //  canvasCtx.lineTo(canvas.width, canvas.height/2);
+     //  } else {
+          canvasCtx.lineTo(x, -1 * dataArray[i]);
+       // }
+
+        x += 5;
+        break
+       //   cancelAnimationFrame(drawVisual)
+      // canvasCtx.stroke();
+      }
+      
+     // canvasCtx.lineTo(canvas.width, canvas.height/2);
+      canvasCtx.stroke();
+      //console.log("arr: ", arr)
+    
+    };
+
+    draw();
+
+}
+
 function startrecording(){
   if(record.id !== ""){
+    cancelAnimationFrame(drawVisual2)
     var track = microphoneStream.getTracks()[0];  
     track.stop();
     record.id = "";
@@ -244,6 +331,12 @@ function startrecording(){
     navigator.mediaDevices.getUserMedia (constraints)
        .then(
          function(stream) {
+         console.log("stream: ", stream)
+          WIDTH = canvas2.width;
+          HEIGHT = canvas2.height;
+              canvasCtx2.clearRect(0, 0, WIDTH, HEIGHT);
+            canvasCtx2.fillStyle = "gray";
+            canvasCtx2.fillRect(0, 0, WIDTH, HEIGHT);
            microphoneStream = stream;
            source2= audioCtx2.createMediaStreamSource(stream);
             source2.connect(analyser2);
@@ -252,6 +345,11 @@ function startrecording(){
            biquadFilter2.connect(convolver2);
            convolver2.connect(gainNode2);
             gainNode2.connect(audioCtx2.destination);
+
+            biquadFilter2.type = "highpass";
+            biquadFilter2.frequency.value = 5000;
+            biquadFilter2.gain.value = 7000;
+
             visualize2();
             record.id = "activated";
             record.innerHTML = "Stop";
@@ -263,106 +361,60 @@ function startrecording(){
  }
 }
 //startrecording();
-// template
-function visualize(analyzer, color) {
-  WIDTH = 2000 // canvas.width;
-  HEIGHT = canvas.height;
-
-
-
-
-
-  analyzer.fftSize = 2048;
-    var bufferLength = analyzer.fftSize;
-    console.log(bufferLength);
-    var dataArray = new Uint8Array(bufferLength);
-    console.log('dataArray: ', dataArray)
-    canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-
-    var draw = function() {
-
-      drawVisual = requestAnimationFrame(draw);
-
-      analyzer.getByteTimeDomainData(dataArray);
-
-      canvasCtx.fillStyle =  'rgb(200, 200, 200)';
-      canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-
-      canvasCtx.lineWidth = 2;
-      canvasCtx.strokeStyle = color // 'rgb(0, 0, 0)';
-
-      canvasCtx.beginPath();
-
-      var sliceWidth = WIDTH * 1.0 / bufferLength;
-      var x = 0;
-
-      for(var i = 0; i < bufferLength; i++) {
-
-        var v = dataArray[i] / 128.0;
-        var y = v * HEIGHT/2;
-
-        if(i === 0) {
-          canvasCtx.moveTo(x, y);
-        } else {
-          canvasCtx.lineTo(x, y);
-        }
-
-        x += sliceWidth;
-      }
-
-      canvasCtx.lineTo(canvas.width, canvas.height/2);
-      canvasCtx.stroke();
-    };
-
-    draw();
-
-}
-
-
 // user vouce
 function visualize2() {
-  WIDTH = canvas2.width;
-  HEIGHT = canvas2.height;
+ 
 
-    analyser2.fftSize = 2048;
-    var bufferLength = analyser2.fftSize;
-    console.log(bufferLength);
-    var dataArray = new Uint8Array(bufferLength);
-    console.log('dataArray: ', dataArray)
-   // canvasCtx2.clearRect(0, 0, WIDTH, HEIGHT);
+  analyser2.fftSize = 32;
+  var bufferLength = 16;
+  console.log(bufferLength);
+  var dataArray = new Float32Array(bufferLength);
+  
+//  canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+  
+    var x = 100;
+    canvasCtx2.lineWidth = 2;
 
+    canvasCtx2.beginPath();
     var draw = function() {
+
 
       drawVisual2 = requestAnimationFrame(draw);
 
-      analyser2.getByteTimeDomainData(dataArray);
-
-      canvasCtx2.fillStyle = 'rgb(200, 200, 200)';
-      canvasCtx2.fillRect(0, 0, WIDTH, HEIGHT);
-
-      canvasCtx2.lineWidth = 2;
-      canvasCtx2.strokeStyle = 'rgb(0, 0, 0)';
-
-      canvasCtx2.beginPath();
+      analyser2.getFloatFrequencyData(dataArray);
+   
+     // console.log('dataArray: ', color, dataArray)
 
       var sliceWidth = WIDTH * 1.0 / bufferLength;
-      var x = 0;
-
+      
+      
+     // canvasCtx.moveTo(50, 50);
       for(var i = 0; i < bufferLength; i++) {
+        if(dataArray[i] == -Infinity || dataArray[i] > 70)
+           continue;
+           console.log("dataArray[i]: ", dataArray[i])
+        
+      //  arr.push(dataArray[i])
+     //    console.log(dataArray[i])
+       // var v = dataArray[i] / 128.0;
+      //  var y = v * HEIGHT/2;
+    //    arr.push(y)
+      //  console.log("y: ", dataArray[i])
+       // console.log("v: ",v)
+     //  if(x === 0) {
+       //  canvasCtx.moveTo(x, -1 * dataArray[i]);
+       //  canvasCtx.lineTo(canvas.width, canvas.height/2);
+     //  } else {
+          canvasCtx2.lineTo(x, -1 * dataArray[i]);
+       // }
 
-        var v = dataArray[i] / 128.0;
-        var y = v * HEIGHT/2;
-
-        if(i === 0) {
-          canvasCtx2.moveTo(x, y);
-        } else {
-          canvasCtx2.lineTo(x, y);
-        }
-
-        x += sliceWidth;
+        x += 5;
+        break
+       //   cancelAnimationFrame(drawVisual)
+      // canvasCtx.stroke();
       }
-
-      canvasCtx2.lineTo(canvas2.width, canvas2.height/2);
+      
+     // canvasCtx.lineTo(canvas.width, canvas.height/2);
       canvasCtx2.stroke();
     };
 

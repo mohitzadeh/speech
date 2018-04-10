@@ -4,21 +4,17 @@
 	<title>Voice-change-O-matic</title>
 	
   <div class="wrapper">
-    
-    <header>
-      <h1>example</h1>
-    </header>
-
    <h2> Samples 
-     <button onclick="playSound()">Base</button>
-     <button onclick="play2()">Comparison 1</button>
+     <button id="base" onclick="playSound()">Base</button>
+     <button id="comparison" onclick="play2()">Comparison 1</button>
+     <button onclick="clearWaves()">Clear and Repeat</button>
      <!-- <button onclick="play3()">Comparison 2</button> -->
   </h2>
-    <canvas class="visualizer" width="2000" height="100"></canvas> 
+    <canvas class="visualizer" width="640" height="150"></canvas> 
 <br>
     <h2> User Voice:</h2>
     <button class="record" onclick="startrecording()">Start</button>
-    <canvas class="visualizer2" width="640" height="100"></canvas> 
+    <canvas class="visualizer2" width="640" height="150"></canvas> 
   </div>
 
   <label for="toggle">❔</label>
@@ -26,7 +22,7 @@
   <aside>
     <h2>Information</h2>
 
-    <p>Voice-change-O-matic is built using:</p>
+    <p>This Demo is built using:</p>
 
     <ul>
 
