@@ -44,6 +44,10 @@ var audioCtx2 = new (window.AudioContext ||
     window.msAudioContext ||
     window.oAudioContext ||
     window.webkitAudioContext)();
+
+        
+
+
 //var voiceSelect = document.getElementById("voice");
 var source, source2, source3;
 var stream, microphoneStream;
@@ -63,7 +67,7 @@ var comparisonButton = document.querySelector('#comparison');
 var analyser = audioCtx.createAnalyser();
 analyser.minDecibels = -90;
 analyser.maxDecibels = -10;
-analyser.smoothingTimeConstant = 0.5;
+analyser.smoothingTimeConstant = 0.8;
 
 var distortion = audioCtx.createWaveShaper();
 var gainNode = audioCtx.createGain();
@@ -75,7 +79,7 @@ var convolver = audioCtx.createConvolver();
 var analyser2 = audioCtx2.createAnalyser();
 analyser2.minDecibels = -90;
 analyser2.maxDecibels = -10;
-analyser2.smoothingTimeConstant = 0.5;
+analyser2.smoothingTimeConstant = 0.8;
 
 // comparison
 var distortion2 = audioCtx2.createWaveShaper();
@@ -87,14 +91,42 @@ var convolver2 = audioCtx2.createConvolver();
 var analyser3 = audioCtx3.createAnalyser();
 analyser3.minDecibels = -90;
 analyser3.maxDecibels = -10;
-analyser3.smoothingTimeConstant = 0.85;
+analyser3.smoothingTimeConstant = 0.8;
 
 var distortion3 = audioCtx3.createWaveShaper();
 var gainNode3 = audioCtx3.createGain();
 var biquadFilter3 = audioCtx3.createBiquadFilter();
 var convolver3 = audioCtx3.createConvolver();
 
+// set up canvas context for visualizer 1
+var canvas = document.querySelector('.visualizer');
+var canvasCtx = canvas.getContext("2d");
 
+var WIDTH = canvas.width;
+var HEIGHT = canvas.height;
+
+
+
+// set up canvas context for visualizer 2
+var canvas2 = document.querySelector('.visualizer');
+var canvasCtx2 = canvas2.getContext("2d");
+
+var canvas3 = document.querySelector('.visualizer');
+var canvasCtx3 = canvas2.getContext("2d");
+
+var intendedWidth = document.querySelector('.wrapper').clientWidth;
+
+canvas.setAttribute('width',intendedWidth);
+
+
+canvas2.setAttribute('width',intendedWidth);
+
+canvas3.setAttribute('width',intendedWidth);
+
+var drawVisual, drawVisual2, recordAnimation;
+
+
+ 
 
 // grab audio track via XHR for convolver node
 
@@ -102,7 +134,7 @@ var templateBuffer, comparisonBuffer;
 
 ajaxRequest = new XMLHttpRequest();
 
-ajaxRequest.open('GET', 'https://speechanalyser.blob.core.windows.net/template/Base.wav', true);
+ajaxRequest.open('GET', 'https://speechanalyser.blob.core.windows.net/template/hamed.wav', true);
 
 ajaxRequest.responseType = 'arraybuffer';
 
@@ -117,7 +149,7 @@ ajaxRequest.onload = function() {
       
       console.log('ajaex buffer: ', buffer)
 
-        template.src = 'https://speechanalyser.blob.core.windows.net/template/Base.wav';
+        template.src = 'https://speechanalyser.blob.core.windows.net/template/hamed.wav';
 
          source = audioCtx.createMediaElementSource(template)
          source.connect(analyser);
@@ -148,7 +180,7 @@ function playSound(){
     template.preload = true;
     template.onended = function(){cancelAnimationFrame(drawVisual); }
  template.play();
- visualize(analyser, "blue");
+ visualize(analyser,1, "blue");
 }
 
 ajaxRequest2 = new XMLHttpRequest();
@@ -195,12 +227,12 @@ function play2(){
     soundSource2.connect(audioCtx3.destination);
     soundSource2.start();
     template2.preload = true;
-    template2.onended = function(){cancelAnimationFrame(drawVisual)}
+    template2.onended = function(){cancelAnimationFrame(drawVisual2)}
  template2.play();
  if(comparisonDrawn){
    
  }
- visualize(analyser3, "red");
+ visualize(analyser3,2, "red");
 }
 
 //record.onclick = record;
@@ -208,7 +240,22 @@ function play2(){
 function clearWaves(){
   comparisonButton.disabled  = false;
   baseButton.disabled  = false;
+  record.disabled  = false;
+  if(recordAnimation)
+     cancelAnimationFrame(recordAnimation)
+  //  mediaRecorder.stop()
+  if(microphoneStream){
+    var track = microphoneStream.getTracks()[0];  
+    if(track)
+       track.stop();
+  }
+
+       record.id = "";
+       record.innerHTML = "Record";
+       record.style.color = "white";
   canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+  canvasCtx2.clearRect(0, 0, WIDTH, HEIGHT);
+  canvasCtx3.clearRect(0, 0, WIDTH, HEIGHT);
 }
 
 function recordVoice(){
@@ -224,105 +271,161 @@ function recordVoice(){
   }
 }
 
-// set up canvas context for visualizer 1
-var canvas = document.querySelector('.visualizer');
-var canvasCtx = canvas.getContext("2d");
 
-// set up canvas context for visualizer 2
-var canvas2 = document.querySelector('.visualizer2');
-var canvasCtx2 = canvas2.getContext("2d");
-
-
-var intendedWidth = document.querySelector('.wrapper').clientWidth;
-
-canvas.setAttribute('width',intendedWidth);
-
-
-canvas2.setAttribute('width',intendedWidth);
-
-var visualSelect = document.getElementById("visual");
-
-var drawVisual, drawVisual2;
-
-
- 
 
 // template
-var arr = []
-function visualize(analyzer, color) {
-  WIDTH = canvas.width;
-  HEIGHT = canvas.height;
+
+function visualize(analyzer, number, color) {
 
   analyzer.fftSize = 32;
     var bufferLength = 16;
     console.log(bufferLength);
     var dataArray = new Float32Array(bufferLength);
-    
+     // 'rgb(0, 0, 0)';
+    var x = 100;
   //  canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-    
-      var x = 100;
+    if(number == 1){
       canvasCtx.lineWidth = 20;
-      if(color == 'red')
-        canvasCtx.lineWidth = 2;
-      canvasCtx.strokeStyle = color // 'rgb(0, 0, 0)';
-
+      canvasCtx.strokeStyle = color;
       canvasCtx.beginPath();
-     // canvasCtx.moveTo(x, 120);
-    var draw = function() {
 
-      drawVisual = requestAnimationFrame(draw);
+      var draw = function() {
+    
+        drawVisual = requestAnimationFrame(draw);
+  
+        analyzer.getFloatFrequencyData(dataArray);
+      
+        var sliceWidth = WIDTH * 1.0 / bufferLength;
+       // canvasCtx.moveTo(50, 50);
+        for(var i = 0; i < bufferLength; i++) {
+          if(dataArray[i] == -Infinity || -1 * dataArray[i] > 70)
+          continue;
+          console.log("dataArray[i]: ", dataArray[i])
+          canvasCtx.lineTo(x, -1 * dataArray[i]);
+          x += 5;
+          break
+        }
+        canvasCtx.stroke();
+          
+      };
+      
+    }
+      if(number == 2){
+        canvasCtx2.lineWidth = 20;
+        canvasCtx2.strokeStyle = color;
+        canvasCtx2.beginPath();
+              var draw = function() {
+    
+        drawVisual2 = requestAnimationFrame(draw);
+  
+        analyzer.getFloatFrequencyData(dataArray);
+      
+        var sliceWidth = WIDTH * 1.0 / bufferLength;
+       // canvasCtx.moveTo(50, 50);
+        for(var i = 0; i < bufferLength; i++) {
+          if(dataArray[i] == -Infinity || -1 * dataArray[i] > 70)
+          continue;
+          console.log("dataArray[i]: ", dataArray[i])
+          canvasCtx2.lineTo(x, -1 * dataArray[i]);
+          x += 5;
+          break
+        }
+        canvasCtx2.stroke();
+          
+      };
+    }
+    if(number == 3){
+      canvasCtx3.lineWidth = 2;
+      canvasCtx3.strokeStyle = color;
+      canvasCtx3.beginPath();
+            var draw = function() {
+  
+      recordAnimation = requestAnimationFrame(draw);
 
       analyzer.getFloatFrequencyData(dataArray);
-   
-      //console.log('dataArray: ', color, dataArray)
-
+    
       var sliceWidth = WIDTH * 1.0 / bufferLength;
-      
-      
      // canvasCtx.moveTo(50, 50);
       for(var i = 0; i < bufferLength; i++) {
-        if(dataArray[i] == -Infinity)
+        if(dataArray[i] == -Infinity || -1 * dataArray[i] > 50)
         continue;
-        
         console.log("dataArray[i]: ", dataArray[i])
-        
-      //  arr.push(dataArray[i])
-     //    console.log(dataArray[i])
-       // var v = dataArray[i] / 128.0;
-      //  var y = v * HEIGHT/2;
-    //    arr.push(y)
-      //  console.log("y: ", dataArray[i])
-       // console.log("v: ",v)
-     //  if(x === 0) {
-       //  canvasCtx.moveTo(x, -1 * dataArray[i]);
-       //  canvasCtx.lineTo(canvas.width, canvas.height/2);
-     //  } else {
-          canvasCtx.lineTo(x, -1 * dataArray[i]);
-       // }
-
+        canvasCtx3.lineTo(x, -1 * dataArray[i]);
         x += 5;
         break
-       //   cancelAnimationFrame(drawVisual)
-      // canvasCtx.stroke();
       }
-      
-     // canvasCtx.lineTo(canvas.width, canvas.height/2);
-      canvasCtx.stroke();
-      //console.log("arr: ", arr)
-    
+      canvasCtx3.stroke();
+        
     };
-
+    }
     draw();
+      
+     // canvasCtx.moveTo(x, 120);
+    // var draw = function() {
+    
+    //   drawVisual = requestAnimationFrame(draw);
+
+    //   analyzer.getFloatFrequencyData(dataArray);
+   
+    //   //console.log('dataArray: ', color, dataArray)
+
+    //   var sliceWidth = WIDTH * 1.0 / bufferLength;
+      
+    
+    //  // canvasCtx.moveTo(50, 50);
+    //   for(var i = 0; i < bufferLength; i++) {
+    //     if(dataArray[i] == -Infinity || -1 * dataArray[i] > 80)
+    //     continue;
+    //     console.log("dataArray[i]: ", dataArray[i])
+    //     canvasCtx.lineTo(x, -1 * dataArray[i]);
+    //     x += 5;
+    //     break
+    //   }
+    //   canvasCtx.stroke();
+        
+    //   //  arr.push(dataArray[i])
+    //  //    console.log(dataArray[i])
+    //    // var v = dataArray[i] / 128.0;
+    //   //  var y = v * HEIGHT/2;
+    // //    arr.push(y)
+    //   //  console.log("y: ", dataArray[i])
+    //    // console.log("v: ",v)
+    //  //  if(x === 0) {
+    //    //  canvasCtx.moveTo(x, -1 * dataArray[i]);
+    //    //  canvasCtx.lineTo(canvas.width, canvas.height/2);
+    //  //  } else {
+    //   // if(-1 * dataArray[i] > 75){
+    //    // canvasCtx.lineTo(x, -1 * dataArray[i] );
+
+    //  //  }else{
+
+    //   // }
+    //    // }
+
+       
+    //    //   cancelAnimationFrame(drawVisual)
+    //   // canvasCtx.stroke();
+      
+    //  // canvasCtx.lineTo(canvas.width, canvas.height/2);
+    //   //console.log("arr: ", arr)
+    
+    // };
+
 
 }
-
+var mediaRecorder ;
 function startrecording(){
   if(record.id !== ""){
-    cancelAnimationFrame(drawVisual2)
+    cancelAnimationFrame(recordAnimation)
+  //  mediaRecorder.stop()
     var track = microphoneStream.getTracks()[0];  
     track.stop();
     record.id = "";
     record.innerHTML = "Record";
+    record.style.color = "white";
+    record.disabled  = true;
+    comparisonButton.disabled  = false;
+    baseButton.disabled  = false;
     return
   }
   if (navigator.mediaDevices.getUserMedia) {
@@ -331,13 +434,22 @@ function startrecording(){
     navigator.mediaDevices.getUserMedia (constraints)
        .then(
          function(stream) {
+          //  mediaRecorder = new MediaStreamRecorder(stream);
+          // mediaRecorder.mimeType = 'audio/wav'; // audio/webm or audio/ogg or audio/wav
+          // mediaRecorder.ondataavailable = function (blob) {
+          //     // POST/PUT "Blob" using FormData/XHR2
+          //     var blobURL = URL.createObjectURL(blob);
+          //     console.log(blobURL)
+          //   //  document.write('<a href="' + blobURL + '">' + blobURL + '</a>');
+          // };
+          // mediaRecorder.start(10000);
          console.log("stream: ", stream)
-          WIDTH = canvas2.width;
-          HEIGHT = canvas2.height;
-              canvasCtx2.clearRect(0, 0, WIDTH, HEIGHT);
-            canvasCtx2.fillStyle = "gray";
-            canvasCtx2.fillRect(0, 0, WIDTH, HEIGHT);
-           microphoneStream = stream;
+        //  WIDTH = canvas2.width;
+        //  HEIGHT = canvas2.height;
+            //   canvasCtx2.clearRect(0, 0, WIDTH, HEIGHT);
+            // canvasCtx2.fillStyle = "gray";
+            // canvasCtx2.fillRect(0, 0, WIDTH, HEIGHT);
+            microphoneStream = stream;
            source2= audioCtx2.createMediaStreamSource(stream);
             source2.connect(analyser2);
            analyser2.connect(distortion2);
@@ -346,11 +458,24 @@ function startrecording(){
            convolver2.connect(gainNode2);
             gainNode2.connect(audioCtx2.destination);
 
-            biquadFilter2.type = "highpass";
-            biquadFilter2.frequency.value = 5000;
-            biquadFilter2.gain.value = 7000;
+            compressor = audioCtx2.createDynamicsCompressor();
+            compressor.threshold.value = -50;
+            compressor.knee.value = 40;
+            compressor.ratio.value = 12;
+            compressor.reduction.value = -20;
+            compressor.attack.value = 0;
+            compressor.release.value = 0.25;
+            biquadFilter2.Q.value = 8.30;
+            biquadFilter2.frequency.value = 355;
+            biquadFilter2.gain.value = 3.0;
+            biquadFilter2.type = 'bandpass';
+            biquadFilter2.connect(compressor);
 
-            visualize2();
+            comparisonButton.disabled  = true;
+            baseButton.disabled  = true;
+
+           visualize(analyser2,3, "green");
+          record.style.color = "red"           
             record.id = "activated";
             record.innerHTML = "Stop";
            // voiceChange();
@@ -387,12 +512,12 @@ function visualize2() {
 
       var sliceWidth = WIDTH * 1.0 / bufferLength;
       
-      
+
      // canvasCtx.moveTo(50, 50);
       for(var i = 0; i < bufferLength; i++) {
-        if(dataArray[i] == -Infinity || dataArray[i] > 70)
+        if(dataArray[i] == -Infinity || -1 * dataArray[i] > 60)
            continue;
-           console.log("dataArray[i]: ", dataArray[i])
+          // console.log("dataArray[i]: ", dataArray[i])
         
       //  arr.push(dataArray[i])
      //    console.log(dataArray[i])

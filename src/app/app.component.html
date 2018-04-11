@@ -4,17 +4,16 @@
 	<title>Voice-change-O-matic</title>
 	
   <div class="wrapper">
-   <h2> Samples 
-     <button id="base" onclick="playSound()">Base</button>
-     <button id="comparison" onclick="play2()">Comparison 1</button>
+     <h2>Demo</h2>
+     <button id="base" onclick="playSound()">Pattern</button>
+     <button id="comparison" onclick="play2()">Sample</button>
+     <button class="record" onclick="startrecording()">Record</button>
      <button onclick="clearWaves()">Clear and Repeat</button>
      <!-- <button onclick="play3()">Comparison 2</button> -->
-  </h2>
-    <canvas class="visualizer" width="640" height="150"></canvas> 
+
+    <canvas style="background-color: gray" class="visualizer" width="640" height="150"></canvas> 
 <br>
-    <h2> User Voice:</h2>
-    <button class="record" onclick="startrecording()">Start</button>
-    <canvas class="visualizer2" width="640" height="150"></canvas> 
+
   </div>
 
   <label for="toggle">❔</label>
