@@ -29,50 +29,30 @@ if (navigator.mediaDevices.getUserMedia === undefined) {
 
 
 
-var audioCtx = new (window.AudioContext ||
-  window.mozAudioContext ||
-  window.msAudioContext ||
-  window.oAudioContext ||
-  window.webkitAudioContext)();
+
 var audioCtx2 = new (window.AudioContext ||
   window.mozAudioContext ||
   window.msAudioContext ||
   window.oAudioContext ||
   window.webkitAudioContext)();
-  var audioCtx3 = new (window.AudioContext ||
-    window.mozAudioContext ||
-    window.msAudioContext ||
-    window.oAudioContext ||
-    window.webkitAudioContext)();
 
-        
-
-
-//var voiceSelect = document.getElementById("voice");
 var source, source2, source3;
 var stream, microphoneStream;
-var template = document.createElement('audio');
-    template.crossOrigin = 'anonymous';
+
 
     var template2 = document.createElement('audio');
     template2.crossOrigin = 'anonymous';
 
 
 var record = document.querySelector('.record');
-var baseButton = document.querySelector('#base');
-var comparisonButton = document.querySelector('#comparison');
-
+var augButton = document.querySelector('#aug');
+var sepButton = document.querySelector('#sep');
+var marchButton = document.querySelector('#march');
+var octButton = document.querySelector('#oct');
+var complexButton = document.querySelector('#complex');
 
 //analyzier 1 for canvas 1 
-var analyser = audioCtx.createAnalyser();
-analyser.minDecibels = -90;
-analyser.maxDecibels = -10;
-analyser.smoothingTimeConstant = 0.8;
 
-var distortion = audioCtx.createWaveShaper();
-var gainNode = audioCtx.createGain();
-var biquadFilter = audioCtx.createBiquadFilter();
-var convolver = audioCtx.createConvolver();
 
 
 //analyzier 2 for canvas 2 
@@ -87,16 +67,6 @@ var gainNode2 = audioCtx2.createGain();
 var biquadFilter2 = audioCtx2.createBiquadFilter();
 var convolver2 = audioCtx2.createConvolver();
 
-
-var analyser3 = audioCtx3.createAnalyser();
-analyser3.minDecibels = -90;
-analyser3.maxDecibels = -10;
-analyser3.smoothingTimeConstant = 0.8;
-
-var distortion3 = audioCtx3.createWaveShaper();
-var gainNode3 = audioCtx3.createGain();
-var biquadFilter3 = audioCtx3.createBiquadFilter();
-var convolver3 = audioCtx3.createConvolver();
 
 // set up canvas context for visualizer 1
 var canvas = document.querySelector('.visualizer');
@@ -131,15 +101,41 @@ var drawVisual, drawVisual2, recordAnimation;
 // grab audio track via XHR for convolver node
 
 var templateBuffer, comparisonBuffer;
+ var audioCtx;
+ var template;
+ var analyser;
+ 
+ var distortion;
+ var gainNode ;
+ var biquadFilter ;
+ var convolver;
 
-ajaxRequest = new XMLHttpRequest();
+function loadSound(id, name){
+   audioCtx = new (window.AudioContext ||
+    window.mozAudioContext ||
+    window.msAudioContext ||
+    window.oAudioContext ||
+    window.webkitAudioContext)();
 
-ajaxRequest.open('GET', 'https://speechanalyser.blob.core.windows.net/template/hamed.wav', true);
+     analyser = audioCtx.createAnalyser();
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -10;
+    analyser.smoothingTimeConstant = 0.8;
+    
+     distortion = audioCtx.createWaveShaper();
+     gainNode = audioCtx.createGain();
+     biquadFilter = audioCtx.createBiquadFilter();
+     convolver = audioCtx.createConvolver();
+
+     template = document.createElement('audio');
+    template.crossOrigin = 'anonymous';
+
+  ajaxRequest = new XMLHttpRequest();
+
+ajaxRequest.open('GET', 'https://speechanalyser.blob.core.windows.net/template/'+name+'.wav', true);
 
 ajaxRequest.responseType = 'arraybuffer';
 
-
-// in real situation this will get the template from database
 ajaxRequest.onload = function() {
   var audioData = ajaxRequest.response;
 
@@ -149,8 +145,8 @@ ajaxRequest.onload = function() {
       
       console.log('ajaex buffer: ', buffer)
 
-        template.src = 'https://speechanalyser.blob.core.windows.net/template/hamed.wav';
-
+        template.src = 'https://speechanalyser.blob.core.windows.net/template/'+name+'.wav';
+//console.log(template)
          source = audioCtx.createMediaElementSource(template)
          source.connect(analyser);
          console.log('source : ', source)
@@ -159,6 +155,7 @@ ajaxRequest.onload = function() {
          biquadFilter.connect(convolver);
          convolver.connect(gainNode);
          gainNode.connect(audioCtx.destination);
+         playSound(id);
  // soundSource.loop = true;
  //visualize(analyser, "blue");
     }, function(e){ console.log("Error with decoding audio data" + e.err);});
@@ -167,79 +164,37 @@ ajaxRequest.onload = function() {
 };
 
 ajaxRequest.send();
+}
 
-function playSound(){
-  baseButton.disabled  = true;
+function playSound(id){
+ // baseButton.disabled  = true;
   var soundSource
   soundSource = audioCtx.createBufferSource();
   soundSource.buffer = templateBuffer;
   soundSource.playbackRate.value = 1 // playbackControl.value;
     soundSource.connect(audioCtx.destination);
     soundSource.start();
-    console.log('ajaex soundSource: ', soundSource)
+    //console.log('ajaex soundSource: ', soundSource)
     template.preload = true;
     template.onended = function(){cancelAnimationFrame(drawVisual); }
  template.play();
- visualize(analyser,1, "blue");
+ visualize(analyser,"sample","blue");
 }
 
-ajaxRequest2 = new XMLHttpRequest();
 
-ajaxRequest2.open('GET', 'https://speechanalyser.blob.core.windows.net/template/Comparison1.wav', true);
-
-ajaxRequest2.responseType = 'arraybuffer';
-
-
-// in real situation this will get the template from database
-ajaxRequest2.onload = function() {
-  var audioData = ajaxRequest2.response;
-
-  audioCtx3.decodeAudioData(audioData, function(buffer) {
-    comparisonBuffer = buffer;
-      songLength = buffer.duration;
-        template2.src = 'https://speechanalyser.blob.core.windows.net/template/Comparison1.wav';
-         source3 = audioCtx3.createMediaElementSource(template2)
-         source3.connect(analyser3);
-         console.log('source : ', source3)
-         analyser3.connect(distortion3);
-         distortion3.connect(biquadFilter3);
-         biquadFilter3.connect(convolver3);
-         convolver3.connect(gainNode3);
-         gainNode3.connect(audioCtx3.destination);
-         
- // soundSource.loop = true;
-
-    }, function(e){ console.log("Error with decoding audio data" + e.err);});
-
-
-};
-
-ajaxRequest2.send();
 
 var comparisonDrawn = false;
 
-function play2(){
-  var soundSource2;
-  comparisonButton.disabled  = true;
-  soundSource2 = audioCtx3.createBufferSource();
-  soundSource2.buffer = comparisonBuffer;
-  soundSource2.playbackRate.value = 1 // playbackControl.value;
-    soundSource2.connect(audioCtx3.destination);
-    soundSource2.start();
-    template2.preload = true;
-    template2.onended = function(){cancelAnimationFrame(drawVisual2)}
- template2.play();
- if(comparisonDrawn){
-   
- }
- visualize(analyser3,2, "red");
-}
 
-//record.onclick = record;
 
 function clearWaves(){
-  comparisonButton.disabled  = false;
-  baseButton.disabled  = false;
+
+
+  augButton   = false
+  sepButton    = false
+  marchButton  = false
+  octButton    = false
+  complexButton = false
   record.disabled  = false;
   if(recordAnimation)
      cancelAnimationFrame(recordAnimation)
@@ -275,7 +230,7 @@ function recordVoice(){
 
 // template
 
-function visualize(analyzer, number, color) {
+function visualize(analyzer,type, color) {
 
   analyzer.fftSize = 32;
     var bufferLength = 16;
@@ -284,7 +239,7 @@ function visualize(analyzer, number, color) {
      // 'rgb(0, 0, 0)';
     var x = 100;
   //  canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-    if(number == 1){
+    if(type == 'sample'){
       canvasCtx.lineWidth = 20;
       canvasCtx.strokeStyle = color;
       canvasCtx.beginPath();
@@ -300,7 +255,7 @@ function visualize(analyzer, number, color) {
         for(var i = 0; i < bufferLength; i++) {
           if(dataArray[i] == -Infinity || -1 * dataArray[i] > 70)
           continue;
-          console.log("dataArray[i]: ", dataArray[i])
+        //  console.log("dataArray[i]: ", dataArray[i])
           canvasCtx.lineTo(x, -1 * dataArray[i]);
           x += 5;
           break
@@ -310,31 +265,9 @@ function visualize(analyzer, number, color) {
       };
       
     }
-      if(number == 2){
-        canvasCtx2.lineWidth = 20;
-        canvasCtx2.strokeStyle = color;
-        canvasCtx2.beginPath();
-              var draw = function() {
-    
-        drawVisual2 = requestAnimationFrame(draw);
-  
-        analyzer.getFloatFrequencyData(dataArray);
-      
-        var sliceWidth = WIDTH * 1.0 / bufferLength;
-       // canvasCtx.moveTo(50, 50);
-        for(var i = 0; i < bufferLength; i++) {
-          if(dataArray[i] == -Infinity || -1 * dataArray[i] > 70)
-          continue;
-          console.log("dataArray[i]: ", dataArray[i])
-          canvasCtx2.lineTo(x, -1 * dataArray[i]);
-          x += 5;
-          break
-        }
-        canvasCtx2.stroke();
-          
-      };
-    }
-    if(number == 3){
+     
+
+    if(type == 'record'){
       canvasCtx3.lineWidth = 2;
       canvasCtx3.strokeStyle = color;
       canvasCtx3.beginPath();
@@ -360,56 +293,7 @@ function visualize(analyzer, number, color) {
     }
     draw();
       
-     // canvasCtx.moveTo(x, 120);
-    // var draw = function() {
-    
-    //   drawVisual = requestAnimationFrame(draw);
 
-    //   analyzer.getFloatFrequencyData(dataArray);
-   
-    //   //console.log('dataArray: ', color, dataArray)
-
-    //   var sliceWidth = WIDTH * 1.0 / bufferLength;
-      
-    
-    //  // canvasCtx.moveTo(50, 50);
-    //   for(var i = 0; i < bufferLength; i++) {
-    //     if(dataArray[i] == -Infinity || -1 * dataArray[i] > 80)
-    //     continue;
-    //     console.log("dataArray[i]: ", dataArray[i])
-    //     canvasCtx.lineTo(x, -1 * dataArray[i]);
-    //     x += 5;
-    //     break
-    //   }
-    //   canvasCtx.stroke();
-        
-    //   //  arr.push(dataArray[i])
-    //  //    console.log(dataArray[i])
-    //    // var v = dataArray[i] / 128.0;
-    //   //  var y = v * HEIGHT/2;
-    // //    arr.push(y)
-    //   //  console.log("y: ", dataArray[i])
-    //    // console.log("v: ",v)
-    //  //  if(x === 0) {
-    //    //  canvasCtx.moveTo(x, -1 * dataArray[i]);
-    //    //  canvasCtx.lineTo(canvas.width, canvas.height/2);
-    //  //  } else {
-    //   // if(-1 * dataArray[i] > 75){
-    //    // canvasCtx.lineTo(x, -1 * dataArray[i] );
-
-    //  //  }else{
-
-    //   // }
-    //    // }
-
-       
-    //    //   cancelAnimationFrame(drawVisual)
-    //   // canvasCtx.stroke();
-      
-    //  // canvasCtx.lineTo(canvas.width, canvas.height/2);
-    //   //console.log("arr: ", arr)
-    
-    // };
 
 
 }
@@ -424,8 +308,12 @@ function startrecording(){
     record.innerHTML = "Record";
     record.style.color = "white";
     record.disabled  = true;
-    comparisonButton.disabled  = false;
-    baseButton.disabled  = false;
+    augButton   = false
+    sepButton    = false
+    marchButton  = false
+    octButton    = false
+    complexButton = false
+    record.disabled  = false;
     return
   }
   if (navigator.mediaDevices.getUserMedia) {
@@ -471,10 +359,15 @@ function startrecording(){
             biquadFilter2.type = 'bandpass';
             biquadFilter2.connect(compressor);
 
-            comparisonButton.disabled  = true;
-            baseButton.disabled  = true;
+           
+            augButton   = true
+            sepButton    = true
+            marchButton  = true
+            octButton    = true
+            complexButton = true
+            record.disabled  = true;
 
-           visualize(analyser2,3, "green");
+           visualize(analyser2,"record", "green");
           record.style.color = "red"           
             record.id = "activated";
             record.innerHTML = "Stop";
@@ -485,73 +378,5 @@ function startrecording(){
     console.log('getUserMedia not supported on your browser!');
  }
 }
-//startrecording();
-// user vouce
-function visualize2() {
- 
-
-  analyser2.fftSize = 32;
-  var bufferLength = 16;
-  console.log(bufferLength);
-  var dataArray = new Float32Array(bufferLength);
-  
-//  canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-  
-    var x = 100;
-    canvasCtx2.lineWidth = 2;
-
-    canvasCtx2.beginPath();
-    var draw = function() {
-
-
-      drawVisual2 = requestAnimationFrame(draw);
-
-      analyser2.getFloatFrequencyData(dataArray);
-   
-     // console.log('dataArray: ', color, dataArray)
-
-      var sliceWidth = WIDTH * 1.0 / bufferLength;
-      
-
-     // canvasCtx.moveTo(50, 50);
-      for(var i = 0; i < bufferLength; i++) {
-        if(dataArray[i] == -Infinity || -1 * dataArray[i] > 60)
-           continue;
-          // console.log("dataArray[i]: ", dataArray[i])
-        
-      //  arr.push(dataArray[i])
-     //    console.log(dataArray[i])
-       // var v = dataArray[i] / 128.0;
-      //  var y = v * HEIGHT/2;
-    //    arr.push(y)
-      //  console.log("y: ", dataArray[i])
-       // console.log("v: ",v)
-     //  if(x === 0) {
-       //  canvasCtx.moveTo(x, -1 * dataArray[i]);
-       //  canvasCtx.lineTo(canvas.width, canvas.height/2);
-     //  } else {
-          canvasCtx2.lineTo(x, -1 * dataArray[i]);
-       // }
-
-        x += 5;
-        break
-       //   cancelAnimationFrame(drawVisual)
-      // canvasCtx.stroke();
-      }
-      
-     // canvasCtx.lineTo(canvas.width, canvas.height/2);
-      canvasCtx2.stroke();
-    };
-
-    draw();
-
- 
-  //  canvasCtx2.clearRect(0, 0, WIDTH, HEIGHT);
-  //  canvasCtx2.fillStyle = "red";
-  //  canvasCtx2.fillRect(0, 0, WIDTH, HEIGHT);
-
-
-}
-
 
 
